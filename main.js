@@ -9,36 +9,26 @@ var map_roomIdPw = new Map();
 
 var app = http.createServer(function(request, response) {
     var _url = request.url;
-
-    //var cookies = cookie.parse(request.headers.cookie);
-
-    console.log(_url);
-    console.log(request.headers.cookie);
-
-    if (_url === '/') {
-        _url = '/login.html';
+    
+    if (_url === '/') {        
         var flist = fs.readdirSync(__dirname + '/html/');
         console.log(flist);
-        console.log(flist.length);
+        login_html(request, response);        
+    } else if (_url === '/lobby') {
+        lobby_html(request, response);
+    } else if (_url === '/game') {
         response.writeHead(200);
-        response.end(fs.readFileSync(__dirname + '/html/' + _url));        
-    } else if (_url === '/lobby') {        
+        response.end(`
+            ${request.headers.cookie}
+        `);
+        //response.end(fs.readFileSync(__dirname + '/html/game.html'));
+    } else if (_url === '/help') {
         response.writeHead(200);
-        response.end(fs.readFileSync(__dirname + '/html/lobby.html'));        
+        response.end(fs.readFileSync(__dirname + '/html/help.html'));
     } else if (_url === '/login_process') {
         login_process(request, response);        
     } else if (_url === '/lobby_process') {
-        lobby_process(request, response);        
-    } else if (_url === 'cookie') {
-        response.end(fs.readFileSync(__dirname + '/html/' + _url));
-        response.writeHead(200, {
-            'Set-Cookie': [
-                'yummy_cookie=choco',
-                'taste_cookie=strawberry',
-                `permanent=forever; Max-Age=3600`,
-                //'secure=scure_value; Secure',
-            ]
-        });
+        lobby_process(request, response);    
     } else {
         response.writeHead(404);
         response.end('Not found');
@@ -63,13 +53,21 @@ function login_process(request, response) {
         var ret;
         console.log(post);
 
-        if (map_userIdPw.has(post.userId)) {
-            response.writeHead(200);
-            response.end('Error!!: Duple Nickname');            
-            return;
+        if (post.login !== undefined) {
+            if (!map_userIdPw.has(post.userId) || map_userIdPw.get(post.userId) !== post.userPw) {
+                response.writeHead(200);
+                response.end('Error!!: Wrong Nickname or Password');
+                return;
+            }
+        } else {
+            if (map_userIdPw.has(post.userId)) {
+                response.writeHead(200);
+                response.end('Error!!: Duple Nickname');
+                return;
+            }
+            
+            map_userIdPw.set(post.userId, post.userPw);
         }
-
-        map_userIdPw.set(post.userId, post.userPw);
 
         response.writeHead(302, {
             'Set-Cookie': [
@@ -78,7 +76,7 @@ function login_process(request, response) {
                 //'secure=scure_value; Secure',
             ],
             'Location': '/lobby'
-        });        
+        });
         response.end();
     });    
 }
@@ -131,11 +129,77 @@ function lobby_process(request, response) {
             console.log('Enter Room!!');
         }
 
-        response.writeHead(200);
-        response.end('Room');
+        response.writeHead(302, {
+            'Set-Cookie': [
+                `roomId=${post.roomId}`,                
+                `permanent=forever; Max-Age=3600`,
+                //'secure=scure_value; Secure',
+            ],
+            'Location': '/game'
+        });
+        response.end();
 
         console.log(map_roomIdPw);
     });    
+}
+
+function login_html(request, response) {
+    response.writeHead(200);
+    response.end(
+        `
+        <!doctype html>
+        <html>
+        <head>
+          <title>Login - OWN</title>
+          <meta charset="utf-8">
+          <!-- <link rel="stylesheet" href="style.css"> -->
+        </head>
+        <body>
+          <h1>ONW</h1>
+            <form action="http://localhost:3000/login_process" method="post">      
+              <p><input type="text" name="userId" placeholder="Nickname"></p>
+              <p><input type="text" name="userPw" placeholder="Password"></p>
+              <p>
+                <input type="submit" value="Login" name="login">
+                <input type="submit" value="Register" name="register">
+              </p>
+            </form>
+          <h2><a href="/help">도움말</a></h2>
+        </body>
+        </html>
+        `
+    );
+}
+
+function lobby_html(request, response) {
+    var _cookie = cookie.parse(request.headers.cookie);
+    response.writeHead(200);
+    response.end(
+        `
+        <!doctype html>
+        <html>
+        <head>
+          <title>Lobby - OWN</title>
+          <meta charset="utf-8">
+          <!-- <link rel="stylesheet" href="style.css"> -->
+        </head>
+        <body>
+          <h1><a href="lobby.html">ONW</a></h1>
+          <p>환영합니다 "${_cookie.id}"님!</p>
+          <p>게임방을 만들거나 이미 만들어진 게임방에 참가할 수 있습니다.</p>
+            <form action="http://localhost:3000/lobby_process" method="post">
+              <p><input type="text" name="roomId" placeholder="Room Number"></p>
+              <p><input type="text" name="roomPw" placeholder="Room Password"></p>      
+              <p>
+                <input type="submit" value="Make Room" name="makeRoom">
+                <input type="submit" value="Enter Room" name="enterRoom">
+              </p>
+            </form>
+          <h2><a href="help.html">도움말</a></h2>
+        </body>
+        </html>        
+        `
+    );
 }
 
 app.listen(3000);
