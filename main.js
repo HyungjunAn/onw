@@ -9,7 +9,15 @@ var map_roomIdPw = new Map();
 
 var app = http.createServer(function(request, response) {
     var _url = request.url;
-    
+    var _cookie = cookie.parse(request.headers.cookie);
+
+    if (_url !== '/' && _url !== '/login_process' && (_cookie.id === undefined || _cookie.id === '')) {
+        response.writeHead(302, {
+            'Location': '/'
+        });
+        response.end();
+    }
+
     if (_url === '/') {        
         var flist = fs.readdirSync(__dirname + '/html/');
         console.log(flist);
@@ -28,7 +36,9 @@ var app = http.createServer(function(request, response) {
     } else if (_url === '/login_process') {
         login_process(request, response);        
     } else if (_url === '/lobby_process') {
-        lobby_process(request, response);    
+        lobby_process(request, response);  
+    } else if (_url === '/logout_process') {
+        logout_process(request, response);    
     } else {
         response.writeHead(404);
         response.end('Not found');
@@ -59,7 +69,7 @@ function login_process(request, response) {
                 response.end('Error!!: Wrong Nickname or Password');
                 return;
             }
-        } else {
+        } else if (post.register !== undefined) {
             if (map_userIdPw.has(post.userId)) {
                 response.writeHead(200);
                 response.end('Error!!: Duple Nickname');
@@ -67,8 +77,14 @@ function login_process(request, response) {
             }
             
             map_userIdPw.set(post.userId, post.userPw);
+        } else {
+            response.writeHead(302, {
+                'Location': '/'
+            });
+            response.end();
+            return    
         }
-
+ 
         response.writeHead(302, {
             'Set-Cookie': [
                 `id=${post.userId}`,
@@ -94,8 +110,9 @@ function lobby_process(request, response) {
     });
 
     request.on('end', function () {
+        var _cookie = cookie.parse(request.headers.cookie);
         var post = qs.parse(body);
-        var ret;
+
         console.log(post);
 
         if (post.makeRoom !== undefined) {
@@ -107,7 +124,7 @@ function lobby_process(request, response) {
             var obj = new Object();
 
             obj.pw = post.roomPw;
-            obj.host = "host_ahj";
+            obj.host = _cookie.id;
             obj.guest = new Set([obj.host]);
             map_roomIdPw.set(post.roomId, obj)
             
@@ -143,7 +160,29 @@ function lobby_process(request, response) {
     });    
 }
 
+function logout_process(request, response) {
+    response.writeHead(302, {
+        'Set-Cookie': [
+            `id=`,                
+            `permanent=forever; Max-Age=3600`,
+            //'secure=scure_value; Secure',
+        ],
+        'Location': '/'
+    });
+    response.end();
+}
+
 function login_html(request, response) {
+    var _cookie = cookie.parse(request.headers.cookie);
+
+    if (_cookie.id !== undefined && _cookie.id !== '') {
+        response.writeHead(302, {
+            'Location': '/lobby'
+        });
+        response.end();
+        return
+    }
+
     response.writeHead(200);
     response.end(
         `
@@ -156,6 +195,7 @@ function login_html(request, response) {
         </head>
         <body>
           <h1>ONW</h1>
+            <p>로그인 또는 회원가입을 해주세요</p>
             <form action="http://localhost:3000/login_process" method="post">      
               <p><input type="text" name="userId" placeholder="Nickname"></p>
               <p><input type="text" name="userPw" placeholder="Password"></p>
@@ -172,7 +212,8 @@ function login_html(request, response) {
 }
 
 function lobby_html(request, response) {
-    var _cookie = cookie.parse(request.headers.cookie);
+    var _cookie = cookie.parse(request.headers.cookie);        
+
     response.writeHead(200);
     response.end(
         `
@@ -195,7 +236,11 @@ function lobby_html(request, response) {
                 <input type="submit" value="Enter Room" name="enterRoom">
               </p>
             </form>
-          <h2><a href="help.html">도움말</a></h2>
+            <br>
+            <form action="http://localhost:3000/logout_process" method="post">
+                <p><input type="submit" value="Logout"></p>              
+            </form>
+          <h2><a href="/help">도움말</a></h2>
         </body>
         </html>        
         `
