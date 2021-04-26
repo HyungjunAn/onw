@@ -6,49 +6,42 @@ var qs = require('querystring');
 
 var map_userIdPw = new Map();
 var map_roomIdPw = new Map();
+var map_idStatus = new Map();
 
 var app = http.createServer(function(request, response) {
     var _url = request.url;
-    var _cookie = cookie.parse(request.headers.cookie);
+    var _cookie = {};
+    var id;
 
-    if (_url !== '/' && _url !== '/login_process' && (_cookie.id === undefined || _cookie.id === '')) {
-        response.writeHead(302, {
-            'Location': '/'
-        });
-        response.end();
+    if (request.headers.cookie !== undefined) {
+        _cookie = cookie.parse(request.headers.cookie);
     }
 
-    if (_url === '/') {        
-        var flist = fs.readdirSync(__dirname + '/html/');
-        console.log(flist);
-        login_html(request, response);        
-    } else if (_url === '/lobby') {
-        lobby_html(request, response);
-    } else if (_url === '/game') {
-        response.writeHead(200);
-        response.end(`
-            ${request.headers.cookie}
-        `);
-        //response.end(fs.readFileSync(__dirname + '/html/game.html'));
+    id = _cookie.id;
+
+    /*
+    var flist = fs.readdirSync(__dirname + '/html/');
+    console.log(flist);
+    */
+
+    if (id === undefined || !map_idStatus.has(id)) {
+        login_process(request, response);
+    } else if (_url === '/lobby' && map_idStatus.get(id) === 'lobby') {
+        lobby_process(request, response, _cookie);
+    } else if (_url === '/room' && map_idStatus.get(id) === 'room') {
+        room_process(request, response, _cookie);        
     } else if (_url === '/help') {
-        response.writeHead(200);
-        response.end(fs.readFileSync(__dirname + '/html/help.html'));
-    } else if (_url === '/login_process') {
-        login_process(request, response);        
-    } else if (_url === '/lobby_process') {
-        lobby_process(request, response);  
-    } else if (_url === '/logout_process') {
-        logout_process(request, response);    
+        help_process(request, response);        
+    } else if (_url === '/logout') {
+        logout_process(request, response);
     } else {
-        response.writeHead(404);
-        response.end('Not found');
-        return;
+        notFound_process(request, response);        
     }
 });
 
 function login_process(request, response) {
     var body = '';
-
+    
     request.on('data', function (data) {
         body += data;
         // Too much POST data, kill the connection!
@@ -60,10 +53,12 @@ function login_process(request, response) {
 
     request.on('end', function () {
         var post = qs.parse(body);
-        var ret;
-        console.log(post);
 
-        if (post.login !== undefined) {
+        if (body === '') {            
+            response.writeHead(200);
+            response.end(fs.readFileSync(__dirname + '/html/login.html'));
+            return
+        } else if (post.login !== undefined) {
             if (!map_userIdPw.has(post.userId) || map_userIdPw.get(post.userId) !== post.userPw) {
                 response.writeHead(200);
                 response.end('Error!!: Wrong Nickname or Password');
@@ -78,26 +73,26 @@ function login_process(request, response) {
             
             map_userIdPw.set(post.userId, post.userPw);
         } else {
-            response.writeHead(302, {
-                'Location': '/'
-            });
-            response.end();
-            return    
+            response.writeHead(200);
+            response.end('Error!!: Undefined Scenario');
+            return;
         }
- 
+
+        map_idStatus.set(post.userId, 'lobby');
         response.writeHead(302, {
             'Set-Cookie': [
                 `id=${post.userId}`,
                 `permanent=forever; Max-Age=3600`,
                 //'secure=scure_value; Secure',
             ],
+
             'Location': '/lobby'
         });
         response.end();
     });    
 }
 
-function lobby_process(request, response) {
+function lobby_process(request, response, _cookie) {
     var body = '';
 
     request.on('data', function (data) {
@@ -109,13 +104,16 @@ function lobby_process(request, response) {
         }
     });
 
-    request.on('end', function () {
-        var _cookie = cookie.parse(request.headers.cookie);
+    request.on('end', function () {        
         var post = qs.parse(body);
 
         console.log(post);
 
-        if (post.makeRoom !== undefined) {
+        if (body === '') {
+            response.writeHead(200);            
+            response.end(fs.readFileSync(__dirname + '/html/lobby.html'));            
+            return
+        } else if (post.makeRoom !== undefined) {
             if (map_roomIdPw.has(post.roomId)) {
                 response.end('Error!!: Duple Room Number');
                 return
@@ -126,8 +124,7 @@ function lobby_process(request, response) {
             obj.pw = post.roomPw;
             obj.host = _cookie.id;
             obj.guest = new Set([obj.host]);
-            map_roomIdPw.set(post.roomId, obj)
-            
+            map_roomIdPw.set(post.roomId, obj)            
             console.log('Make Room!!');
         } else {
             if (!map_roomIdPw.has(post.roomId)) {
@@ -142,22 +139,30 @@ function lobby_process(request, response) {
                 return
             }
 
-            map_roomIdPw.get(post.roomId).guest.add("guest_ahj");            
+            map_roomIdPw.get(post.roomId).guest.add(_cookie.id);            
             console.log('Enter Room!!');
         }
 
+        map_idStatus.get(_cookie.id) = 'room';
         response.writeHead(302, {
             'Set-Cookie': [
                 `roomId=${post.roomId}`,                
                 `permanent=forever; Max-Age=3600`,
                 //'secure=scure_value; Secure',
             ],
-            'Location': '/game'
+            'Location': '/room'
         });
         response.end();
 
         console.log(map_roomIdPw);
     });    
+}
+
+function room_process(request, response, _cookie) {
+    response.writeHead(200);
+    response.end(`
+        ${_cookie}
+    `);
 }
 
 function logout_process(request, response) {
@@ -167,84 +172,18 @@ function logout_process(request, response) {
             `permanent=forever; Max-Age=3600`,
             //'secure=scure_value; Secure',
         ],
-        'Location': '/'
     });
     response.end();
 }
 
-function login_html(request, response) {
-    var _cookie = cookie.parse(request.headers.cookie);
-
-    if (_cookie.id !== undefined && _cookie.id !== '') {
-        response.writeHead(302, {
-            'Location': '/lobby'
-        });
-        response.end();
-        return
-    }
-
+function help_process(request, response) {
     response.writeHead(200);
-    response.end(
-        `
-        <!doctype html>
-        <html>
-        <head>
-          <title>Login - OWN</title>
-          <meta charset="utf-8">
-          <!-- <link rel="stylesheet" href="style.css"> -->
-        </head>
-        <body>
-          <h1>ONW</h1>
-            <p>로그인 또는 회원가입을 해주세요</p>
-            <form action="http://localhost:3000/login_process" method="post">      
-              <p><input type="text" name="userId" placeholder="Nickname"></p>
-              <p><input type="text" name="userPw" placeholder="Password"></p>
-              <p>
-                <input type="submit" value="Login" name="login">
-                <input type="submit" value="Register" name="register">
-              </p>
-            </form>
-          <h2><a href="/help">도움말</a></h2>
-        </body>
-        </html>
-        `
-    );
-}
+    response.end(fs.readFileSync(__dirname + '/html/help.html'));
+}        
 
-function lobby_html(request, response) {
-    var _cookie = cookie.parse(request.headers.cookie);        
-
-    response.writeHead(200);
-    response.end(
-        `
-        <!doctype html>
-        <html>
-        <head>
-          <title>Lobby - OWN</title>
-          <meta charset="utf-8">
-          <!-- <link rel="stylesheet" href="style.css"> -->
-        </head>
-        <body>
-          <h1><a href="lobby.html">ONW</a></h1>
-          <p>환영합니다 "${_cookie.id}"님!</p>
-          <p>게임방을 만들거나 이미 만들어진 게임방에 참가할 수 있습니다.</p>
-            <form action="http://localhost:3000/lobby_process" method="post">
-              <p><input type="text" name="roomId" placeholder="Room Number"></p>
-              <p><input type="text" name="roomPw" placeholder="Room Password"></p>      
-              <p>
-                <input type="submit" value="Make Room" name="makeRoom">
-                <input type="submit" value="Enter Room" name="enterRoom">
-              </p>
-            </form>
-            <br>
-            <form action="http://localhost:3000/logout_process" method="post">
-                <p><input type="submit" value="Logout"></p>              
-            </form>
-          <h2><a href="/help">도움말</a></h2>
-        </body>
-        </html>        
-        `
-    );
-}
+function notFound_process(request, response) {
+    response.writeHead(404);
+    response.end('Not found');
+}        
 
 app.listen(3000);

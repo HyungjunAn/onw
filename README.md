@@ -17,5 +17,6 @@ $ Set-ExecutionPolicy Unrestricted
 ## Server
 ```
 $ pm2 start main.js --watch
+$ pm2-dev start main.js
 ```
 ## Client

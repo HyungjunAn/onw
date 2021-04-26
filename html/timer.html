@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <title>도움말 - OWN</title>
+  <meta charset="utf-8">
+  <!-- <link rel="stylesheet" href="style.css"> -->
+</head>
+<body>
+    <form name="form_main">
+        <div>
+          <span id="minute">00</span>:<span id="second">00</span>
+        </div>
+        <br>
+        <button type="button" name="start">start</button>
+        <button type="button" name="pause">pause</button>
+        <button type="button" name="reset">reset</button>
+    </form>
+    
+    <script>
+        let minute = 0;
+        let second = 0;
+        let cron;
+
+        function start() {
+            pause();
+            cron = setInterval(() => { timer(); }, 1 * 1000);
+        }
+
+        function pause() {
+            clearInterval(cron);
+        }
+
+        function reset() {
+            minute = 0;
+            second = 0;
+            document.getElementById('minute').innerText = '00';
+            document.getElementById('second').innerText = '00';
+        }
+
+        function timer() {
+            if ((second += 1) == 60) {
+                second = 0;
+                minute++;
+            }
+            if (minute == 60) {
+                minute = 0;
+            }
+            document.getElementById('minute').innerText = returnData(minute);
+            document.getElementById('second').innerText = returnData(second);
+        }
+
+        function returnData(input) {
+            return input >= 10 ? input : `0${input}`
+        }
+
+        document.form_main.start.onclick = () => start();
+        document.form_main.pause.onclick = () => pause();
+        document.form_main.reset.onclick = () => reset();
+    </script>    
+</body>
+</html>
