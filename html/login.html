@@ -1,21 +1,24 @@
 <!doctype html>
 <html>
+
 <head>
   <title>Login - OWN</title>
   <meta charset="utf-8">
   <!-- <link rel="stylesheet" href="style.css"> -->
 </head>
+
 <body>
   <h1><a href="/">ONW</a></h1>
   <p>ONW is awesome game!!</p>
-    <form action="http://localhost:3000/login" method="post">      
-      <p><input type="text" name="userId" placeholder="Nickname"></p>
-      <p><input type="text" name="userPw" placeholder="Password"></p>
-      <p>
-        <input type="submit" value="Login" name="login">
-        <input type="submit" value="Register" name="register">
-      </p>
-    </form>
-  <h2><a href="/help">도움말</a></h2>
+  <form action="http://localhost:3000/login" method="post">
+    <p><input type="text" name="userId" placeholder="Nickname"></p>
+    <p><input type="text" name="userPw" placeholder="Password"></p>
+    <p>
+      <input type="submit" value="Login" name="login">
+      <input type="submit" value="Register" name="register">
+    </p>
+  </form>
+  <p><button type="button" onclick="location.href='/help'">도움말</button></p>
 </body>
+
 </html>

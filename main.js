@@ -24,18 +24,18 @@ var app = http.createServer(function(request, response) {
     console.log(flist);
     */
 
-    if (id === undefined || !map_idStatus.has(id)) {
+    if (_url === '/help') {
+        help_process(request, response);
+    } else if (id === undefined || !map_idStatus.has(id)) {
         login_process(request, response);
-    } else if (_url === '/lobby' && map_idStatus.get(id) === 'lobby') {
-        lobby_process(request, response, _cookie);
-    } else if (_url === '/room' && map_idStatus.get(id) === 'room') {
-        room_process(request, response, _cookie);        
-    } else if (_url === '/help') {
-        help_process(request, response);        
     } else if (_url === '/logout') {
         logout_process(request, response);
+    } else if (_url === '/lobby' || map_idStatus.get(id) === 'lobby') {
+        lobby_process(request, response, _cookie);
+    } else if (_url === '/room' || map_idStatus.get(id) === 'room') {
+        room_process(request, response, _cookie);
     } else {
-        notFound_process(request, response);        
+        notFound_process(request, response);
     }
 });
 
